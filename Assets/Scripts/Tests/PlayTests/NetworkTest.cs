@@ -67,7 +67,7 @@ namespace Tests.PlayTests
         public IEnumerator TestPlaceFirework()
         {
             yield return _network.SendCode(_password); // valid auth
-            var firework = new Firework("User Test", FireworkType.Normal, "10", "11", "12");
+            var firework = new Firework(FireworkType.Normal, "-1", "1,1", "-1.2");
             yield return _network.PlaceFirework(firework);
             Assert.True(_network.PlaceFireworkResponse == 200);
         }
@@ -79,7 +79,7 @@ namespace Tests.PlayTests
             Firework firework = null;
             Assert.Throws<FormatException>(() =>
             {
-                firework = new Firework("User Test", FireworkType.Normal, "should not work", "11", "12");
+                firework = new Firework(FireworkType.Normal, "should not work", "11", "12");
             });
 
             // fireword is still null here
@@ -96,7 +96,7 @@ namespace Tests.PlayTests
         public IEnumerator TestPlaceFireworkFailureAuth()
         {
             _network.Logout(); // remove auth (if token was stored)
-            var firework = new Firework("User Test", FireworkType.Normal, "10", "11", "12");
+            var firework = new Firework(FireworkType.Normal, "10", "11", "12");
             yield return _network.PlaceFirework(firework);
             Assert.False(_network.PlaceFireworkResponse == 200); // should not receive OK
             Assert.True(_network.PlaceFireworkResponse == 401); // should receive Unauthorized
@@ -106,13 +106,13 @@ namespace Tests.PlayTests
         public IEnumerator TestBindReceiveFireworkPlacement()
         {
             yield return _network.SendCode(_password); // user authentication
-            var firework = new Firework("User Test", FireworkType.Normal, RandCoordinate(), 
+            var firework = new Firework(FireworkType.Normal, RandCoordinate(), 
                 RandCoordinate(), RandCoordinate());
-            
+            Debug.Log(firework);
             _network.BindReceiveFireworkPlacement((FireworkReceived fireworkReceived) =>
             {
                 Assert.True(fireworkReceived.Id != 0u);
-                Assert.True(((Firework) fireworkReceived).Equals(firework));
+                Assert.True(fireworkReceived.Equals(firework));
             });
             yield return new WaitForSeconds(1); // Wait to be sure binding is done
             yield return _network.PlaceFirework(firework);

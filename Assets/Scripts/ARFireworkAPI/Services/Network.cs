@@ -76,7 +76,7 @@ namespace ARFireworkAPI.Services
         
         public void BindReceiveFireworkPlacement(OnReceiveFireworkPlacement f)
         {
-            _channel.Bind("firework-event", (dynamic data) =>
+            _channel.Bind("firework-placement", (dynamic data) =>
             {
                 f(new FireworkReceived(data));
             });
@@ -102,11 +102,9 @@ namespace ARFireworkAPI.Services
 
         public IEnumerator PlaceFirework(Firework firework)
         {
-            // 1) TODO: bind on receive
-
-            // 2) fill form
+            // fill form
             var form = new WWWForm();
-            form.AddField("author", firework.Author);
+            // form.AddField("author", firework.Author);
             form.AddField("type", firework.Type.ToString());
             form.AddField("x", firework.GetX().ToString());
             form.AddField("y", firework.GetY().ToString());
@@ -125,6 +123,7 @@ namespace ARFireworkAPI.Services
                 {
                     PlaceFireworkResponse = (int) www.responseCode;
                     Debug.Log("Error: " + www.error);
+                    Debug.Log("Reason: " + www.downloadHandler.text);
                     Debug.Log("PlaceFireworkResponse: " + PlaceFireworkResponse);
                     // Debug.LogError(www.downloadHandler.text);
                 }

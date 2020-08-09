@@ -8,6 +8,8 @@ namespace ARFireworkAPI.Models
     {
         public uint Id { get; } = 0u;
         
+        public string Author { get; private set; }
+        
         public FireworkReceived(JObject @event)
         {
             var msg = JObject.Parse((string) @event["data"])["message"];
@@ -39,7 +41,7 @@ namespace ARFireworkAPI.Models
 
         public override string ToString()
         {
-            return string.Format("{0} lance son feu d'artifice (id: {5}) de type \"{4}\" à la position ({1}, {2}, {3})",
+            return string.Format("Auteur: {0}\nId: {5}\nType {4}\nPosition ({1}, {2}, {3})",
                 Author, GetX(), GetY(), GetZ(), Type, Id);
         }
     }

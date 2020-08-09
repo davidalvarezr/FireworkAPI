@@ -5,8 +5,6 @@ namespace ARFireworkAPI.Models
     public class Firework
 
     {
-        
-        public string Author { get; protected set; }
         public FireworkType Type { get; protected set; }
 
         public Vector3 Position { get; protected set; }
@@ -14,15 +12,18 @@ namespace ARFireworkAPI.Models
         // Only called from FireworReceived
         protected Firework()
         {
-            
         }
-        
+
         // Base constructor
-        public Firework(string author, FireworkType type, string x, string y, string z)
+        public Firework(FireworkType type, string x, string y, string z)
         {
-            this.Author = author;
             this.Type = type;
-            this.Position = new Vector3(float.Parse(x), float.Parse(y), float.Parse(z));
+
+            this.Position = new Vector3(
+                float.Parse(x.Replace(",", ".")),
+                float.Parse(y.Replace(",", ".")),
+                float.Parse(z.Replace(",", "."))
+            );
         }
 
         public float GetX()
@@ -48,8 +49,8 @@ namespace ARFireworkAPI.Models
                 return false;
             }
 
-            if ((this.Author == f.Author && this.Type == f.Type && GetX() == f.GetX() &&
-                                      GetY() == f.GetY() && GetZ() == f.GetZ()))
+            if ((this.Type == f.Type && GetX() == f.GetX() &&
+                 GetY() == f.GetY() && GetZ() == f.GetZ()))
             {
                 return true;
             }
@@ -59,8 +60,7 @@ namespace ARFireworkAPI.Models
 
         public override string ToString()
         {
-            return string.Format("{0} lance son feu d'artifice de type \"{4}\" à la position ({1}, {2}, {3})", Author,
-                GetX(), GetY(), GetZ(), Type);
+            return string.Format("Type:\"{0}\"\nPosition ({1}, {2}, {3})", Type, GetX(), GetY(), GetZ());
         }
     }
 }
