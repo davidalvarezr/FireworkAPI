@@ -106,13 +106,18 @@ namespace Tests.PlayTests
         public IEnumerator TestBindReceiveFireworkPlacement()
         {
             yield return _network.SendCode(_password); // user authentication
-            var firework = new Firework("User Test", FireworkType.Normal, "10", "11", "12");
+            var firework = new Firework("User Test", FireworkType.Normal, RandCoordinate(), 
+                RandCoordinate(), RandCoordinate());
             
-            _network.BindReceiveFireworkPlacement((Firework fireworkReceived) =>
+            _network.BindReceiveFireworkPlacement((FireworkReceived fireworkReceived) =>
             {
-                Debug.Log("Inside bindReceiveFireworkPlacement");
-                firework = fireworkReceived;
+                Assert.True(fireworkReceived.Id != 0u);
+                Assert.True(((Firework) fireworkReceived).Equals(firework));
             });
+            yield return new WaitForSeconds(1); // Wait to be sure binding is done
+            yield return _network.PlaceFirework(firework);
+            yield return new WaitForSeconds(1); // Wait to be sure code has the time to go in the body of the Binding
+            
         }
 
 

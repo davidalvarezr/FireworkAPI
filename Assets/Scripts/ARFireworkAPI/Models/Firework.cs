@@ -1,55 +1,43 @@
-﻿namespace ARFireworkAPI.Models
-{
-    using System.Numerics;
+﻿using System.Numerics;
 
+namespace ARFireworkAPI.Models
+{
     public class Firework
 
     {
-        public uint Id { get; }
-        public string Author { get; }
-        public FireworkType Type { get; }
+        
+        public string Author { get; protected set; }
+        public FireworkType Type { get; protected set; }
 
-        private Vector3 position;
+        public Vector3 Position { get; protected set; }
 
+        // Only called from FireworReceived
+        protected Firework()
+        {
+            
+        }
+        
         // Base constructor
         public Firework(string author, FireworkType type, string x, string y, string z)
         {
             this.Author = author;
             this.Type = type;
-            this.position.X = float.Parse(x);
-            this.position.Y = float.Parse(y);
-            this.position.Z = float.Parse(z);
-        }
-
-        public Firework(string name, string surname, FireworkType type, string x, string y, string z)
-        {
-            this.Author = $"{surname} {name}";
-            this.Type = type;
-            this.position.X = float.Parse(x);
-            this.position.Y = float.Parse(y);
-            this.position.Z = float.Parse(z);
-        }
-
-        // Constructor with id
-        public Firework(uint id, string author, FireworkType type, string x, string y, string z) : this(author, type, x,
-            y, z)
-        {
-            this.Id = id;
+            this.Position = new Vector3(float.Parse(x), float.Parse(y), float.Parse(z));
         }
 
         public float GetX()
         {
-            return this.position.X;
+            return this.Position.X;
         }
 
         public float GetY()
         {
-            return this.position.Y;
+            return this.Position.Y;
         }
 
         public float GetZ()
         {
-            return this.position.Z;
+            return this.Position.Z;
         }
 
         public override bool Equals(object obj)
@@ -60,7 +48,7 @@
                 return false;
             }
 
-            if ((this.Id == f.Id) || (this.Author == f.Author && this.Type == f.Type && GetX() == f.GetX() &&
+            if ((this.Author == f.Author && this.Type == f.Type && GetX() == f.GetX() &&
                                       GetY() == f.GetY() && GetZ() == f.GetZ()))
             {
                 return true;

@@ -1,7 +1,5 @@
 ﻿using System.Collections;
-using System.Threading.Tasks;
 using ARFireworkAPI.Models;
-using RSG;
 
 namespace ARFireworkAPI.Services
 {
@@ -9,7 +7,7 @@ namespace ARFireworkAPI.Services
     /// 
     /// </summary>
     /// <param name="firework">The firework that has been placed</param>
-    public delegate void OnReceiveFireworkPlacement(Firework firework);
+    public delegate void OnReceiveFireworkPlacement(FireworkReceived firework);
 
     /// <summary>
     /// 
@@ -20,7 +18,8 @@ namespace ARFireworkAPI.Services
     public interface INetwork
     {
         /// <summary>
-        /// Send the personnal code to the API. If successful, store the access token inside the local storage.
+        /// Send the personnal code to the API. If successful, store the access token inside the local storage and
+        /// initialize the pusher object
         /// Check the result in AuthenticationResponse
         /// </summary>
         /// <param name="code">the private code</param>

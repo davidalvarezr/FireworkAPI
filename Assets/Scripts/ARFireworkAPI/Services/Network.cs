@@ -1,10 +1,13 @@
 ﻿using System;
 using System.Collections;
+using ARFireworkAPI.Adapters;
 using ARFireworkAPI.Models;
 using ARFireworkAPI.Serializable;
 using Newtonsoft.Json.Linq;
+using PusherClient;
 using UnityEngine;
 using UnityEngine.Networking;
+
 
 namespace ARFireworkAPI.Services
 {
@@ -24,6 +27,12 @@ namespace ARFireworkAPI.Services
         
         // PUSHER
         private Pusher _pusher;
+        private Channel _channel;
+        
+        private readonly string _pusherAuthEndpoint;
+        private readonly string _appKey;
+        private readonly string _appCluster;
+        private readonly string _channelFirework;
 
         public AuthenticationResponse AuthenticationResponse { get; private set; }
         public bool ConnectionIsStillValid { get; private set; }
@@ -47,9 +56,13 @@ namespace ARFireworkAPI.Services
         
         private Network()
         {
+            new EnvSetter();
+            _pusherAuthEndpoint = Environment.GetEnvironmentVariable("pusher_auth_endpoint");
+            _appKey = Environment.GetEnvironmentVariable("app_key");
+            _appCluster = Environment.GetEnvironmentVariable("app_cluster");
+            _channelFirework = Environment.GetEnvironmentVariable("channel_firework");
             _tokenStorage = TokenStorage.Instance;
         }
-
 
         public void SetProtocol(string protocol)
         {
@@ -63,8 +76,13 @@ namespace ARFireworkAPI.Services
         
         public void BindReceiveFireworkPlacement(OnReceiveFireworkPlacement f)
         {
-            // 
+            _channel.Bind("firework-event", (dynamic data) =>
+            {
+                f(new FireworkReceived(data));
+            });
         }
+        
+        
 
         public void BindReceiveFireworkTrigger(OnReceiveFireworkTrigger f)
         {
@@ -112,9 +130,9 @@ namespace ARFireworkAPI.Services
                 }
                 else
                 {
-                    Debug.Log("Response Text:" + www.downloadHandler.text);
+                    // Debug.Log("Response Text:" + www.downloadHandler.text);
                     PlaceFireworkResponse = (int) www.responseCode;
-                    Debug.Log("PlaceFireworkResponse: " + PlaceFireworkResponse);
+                    // Debug.Log("PlaceFireworkResponse: " + PlaceFireworkResponse);
                 }
             }
         }
@@ -123,12 +141,14 @@ namespace ARFireworkAPI.Services
         {
             AuthenticationResponse = null;
             yield return Login(code);
-            if (AuthenticationResponse.IsSuccessful())
-            {
-                _tokenStorage.StoreAccessToken(AuthenticationResponse.AccessToken);
-            }
+            if (!AuthenticationResponse.IsSuccessful()) yield break;
+            _tokenStorage.StoreAccessToken(AuthenticationResponse.AccessToken);
+            InitializePusher(AuthenticationResponse.AccessToken);
         }
 
+        // PRIVATE METHODS =============================================================================================
+        #region PrivateMethods
+        
         private IEnumerator Login(string password)
         {
             var form = new WWWForm();
@@ -148,12 +168,12 @@ namespace ARFireworkAPI.Services
                 }
                 else
                 {
-                    Debug.Log("Form uploaded complete!");
+                    // Debug.Log("Form uploaded complete!");
                     var responseText = www.downloadHandler.text;
-                    Debug.Log("Response Text:" + responseText);
+                    // Debug.Log("Response Text:" + responseText);
                     var accessToken = (string) JObject.Parse(responseText)["token"];
-                    Debug.Log(accessToken);
-                    var person = (Person) JObject.Parse(responseText)["user"].ToObject<Person>();
+                    // Debug.Log(accessToken);
+                    var person = JObject.Parse(responseText)["user"].ToObject<Person>();
                     AuthenticationResponse =
                         new AuthenticationResponse(www.responseCode.ToString(), person, accessToken);
                 }
@@ -199,5 +219,47 @@ namespace ARFireworkAPI.Services
         {
             return $"{Protocol}{Host}{Prefix}{route}";
         }
+        
+        private async void InitializePusher(string accessToken)
+        {
+            
+            var uri = $"{Protocol}{Host}{Prefix}{_pusherAuthEndpoint}";
+            // Debug.Log("uri: " + uri);
+            // Debug.Log("app key: " + _appKey);
+            // Debug.Log("app cluster: " + _appCluster);
+            // Debug.Log("access token: " + accessToken);
+            // Debug.Log("channel: " + _channelFirework);
+            
+            _pusher = new Pusher(_appKey, new PusherOptions()
+            {
+                Authorizer = new MyAuthorizer(uri, accessToken),
+                Cluster = _appCluster,    
+            });
+            
+            _pusher.Error += (s, e) =>
+            {
+                Debug.Log("Errored");
+            };
+            _pusher.ConnectionStateChanged += (sender, state) =>
+            {
+                Debug.Log("Connection state changed");
+            };
+            _pusher.Connected += sender =>
+            {
+                Debug.Log("Connected");
+            };
+
+            _channel = await _pusher.SubscribeAsync(_channelFirework);
+            _channel.Subscribed += s =>
+            {
+                Debug.Log("Subscribed");
+            };
+
+            await _pusher.ConnectAsync();
+        }
+
+        #endregion
+        
+        
     }
 }
