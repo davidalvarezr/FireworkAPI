@@ -1,13 +1,8 @@
 ﻿using System;
 using System.Collections;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 using ARFireworkAPI.Models;
 using ARFireworkAPI.Serializable;
 using Newtonsoft.Json.Linq;
-using Proyecto26;
-using RSG;
-using UnityEditor;
 using UnityEngine;
 using UnityEngine.Networking;
 
@@ -18,8 +13,17 @@ namespace ARFireworkAPI.Services
         private static Network _instance;
         private static readonly object Padlock = new object();
         private readonly TokenStorage _tokenStorage;
-        private static readonly string Prefix = "/api/";
-        private static readonly string PlaceFireworkRoute = "firework/broadcast";
+
+        public static string Protocol { get; private set; } = "http://";
+        public static string Host { get; private set; } = "localhost";
+        private const string Prefix = "/api/";
+        
+        private const string PlaceFireworkRoute = "firework/broadcast";
+        private const string LoginRoute = "login";
+        private const string ProtectedResourceRoute = "protected-resource-test";
+        
+        // PUSHER
+        private Pusher _pusher;
 
         public AuthenticationResponse AuthenticationResponse { get; private set; }
         public bool ConnectionIsStillValid { get; private set; }
@@ -40,15 +44,26 @@ namespace ARFireworkAPI.Services
             }
         }
 
+        
         private Network()
         {
             _tokenStorage = TokenStorage.Instance;
         }
-        
 
+
+        public void SetProtocol(string protocol)
+        {
+            Protocol = protocol;
+        }
+
+        public void SetHost(string host)
+        {
+            Host = host;
+        }
+        
         public void BindReceiveFireworkPlacement(OnReceiveFireworkPlacement f)
         {
-            throw new NotImplementedException();
+            // 
         }
 
         public void BindReceiveFireworkTrigger(OnReceiveFireworkTrigger f)
@@ -70,7 +85,7 @@ namespace ARFireworkAPI.Services
         public IEnumerator PlaceFirework(Firework firework)
         {
             // 1) TODO: bind on receive
-            
+
             // 2) fill form
             var form = new WWWForm();
             form.AddField("author", firework.Author);
@@ -78,28 +93,28 @@ namespace ARFireworkAPI.Services
             form.AddField("x", firework.GetX().ToString());
             form.AddField("y", firework.GetY().ToString());
             form.AddField("z", firework.GetZ().ToString());
-            
+
             var accessToken = _tokenStorage.RetrieveAccessToken();
-            
-            using (var www = UnityWebRequest.Post($"{Prefix}{PlaceFireworkRoute}", form))
+
+            using (var www = UnityWebRequest.Post(BuildUrl(PlaceFireworkRoute), form))
             {
                 www.SetRequestHeader("Accept", "application/json");
                 www.SetRequestHeader("Authorization", $"Bearer {accessToken}");
-                
+
                 yield return www.SendWebRequest();
 
                 if (www.isNetworkError || www.isHttpError)
                 {
                     PlaceFireworkResponse = (int) www.responseCode;
-                    Debug.Log(www.error);
-                    Debug.Log(PlaceFireworkResponse);
+                    Debug.Log("Error: " + www.error);
+                    Debug.Log("PlaceFireworkResponse: " + PlaceFireworkResponse);
                     // Debug.LogError(www.downloadHandler.text);
                 }
                 else
                 {
                     Debug.Log("Response Text:" + www.downloadHandler.text);
                     PlaceFireworkResponse = (int) www.responseCode;
-                    Debug.Log(PlaceFireworkResponse);
+                    Debug.Log("PlaceFireworkResponse: " + PlaceFireworkResponse);
                 }
             }
         }
@@ -119,7 +134,7 @@ namespace ARFireworkAPI.Services
             var form = new WWWForm();
             form.AddField("password", password);
 
-            using (var www = UnityWebRequest.Post("/api/login", form))
+            using (var www = UnityWebRequest.Post(BuildUrl(LoginRoute), form))
             {
                 www.SetRequestHeader("Accept", "application/json");
                 yield return www.SendWebRequest();
@@ -151,7 +166,7 @@ namespace ARFireworkAPI.Services
 
             if (accessToken != null)
             {
-                using (var www = UnityWebRequest.Get("/api/protected-resource-test"))
+                using (var www = UnityWebRequest.Get(BuildUrl(ProtectedResourceRoute)))
                 {
                     www.SetRequestHeader("Accept", "application/json");
                     var bearerToken = $"Bearer {accessToken}";
@@ -178,8 +193,11 @@ namespace ARFireworkAPI.Services
             {
                 ConnectionIsStillValid = false;
             }
-            
-            
+        }
+
+        private string BuildUrl(string route)
+        {
+            return $"{Protocol}{Host}{Prefix}{route}";
         }
     }
 }

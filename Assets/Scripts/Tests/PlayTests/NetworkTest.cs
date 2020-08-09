@@ -5,6 +5,7 @@ using Random = System.Random;
 using System.Globalization;
 using ARFireworkAPI.Models;
 using ARFireworkAPI.Services;
+using UnityEngine;
 using UnityEngine.TestTools;
 using Network = ARFireworkAPI.Services.Network;
 
@@ -70,39 +71,48 @@ namespace Tests.PlayTests
             yield return _network.PlaceFirework(firework);
             Assert.True(_network.PlaceFireworkResponse == 200);
         }
-
-        // TODO: try to fail the placement of a Firework
-        [Test]
-        public void TestPlaceFireworkFailure()
+        
+        [UnityTest]
+        public IEnumerator TestPlaceFireworkFailureFormat()
         {
-            Assert.True(false);
-            _tokenStorage.ClearToken();
-            var x = RandCoordinate();
-            var y = RandCoordinate();
-            var z = RandCoordinate();
-            var firework = new Firework("Jean Dujardin", FireworkType.Normal, x, y, z);
-            var statusCode = _network.PlaceFirework(firework);
-            Assert.AreNotEqual(statusCode, 200);
+            yield return _network.SendCode(_password); // valid auth
+            Firework firework = null;
+            Assert.Throws<FormatException>(() =>
+            {
+                firework = new Firework("User Test", FireworkType.Normal, "should not work", "11", "12");
+            });
+
+            // fireword is still null here
+            
+            // Assert.Throws<NullReferenceException>(() =>
+            // {
+            //     yield return _network.PlaceFirework(firework);
+            // });
+            //
+            // Assert.True(_network.PlaceFireworkResponse != 200);
+        }
+        
+        [UnityTest]
+        public IEnumerator TestPlaceFireworkFailureAuth()
+        {
+            _network.Logout(); // remove auth (if token was stored)
+            var firework = new Firework("User Test", FireworkType.Normal, "10", "11", "12");
+            yield return _network.PlaceFirework(firework);
+            Assert.False(_network.PlaceFireworkResponse == 200); // should not receive OK
+            Assert.True(_network.PlaceFireworkResponse == 401); // should receive Unauthorized
         }
 
-        [Test]
-        public void TestBindReceiveFireworkPlacement()
+        [UnityTest]
+        public IEnumerator TestBindReceiveFireworkPlacement()
         {
-            Assert.True(false);
-            // Firework firework = null;
-            // var x = RandCoord();
-            // var y = RandCoord();
-            // var z = RandCoord();
-            // var fireworkToSend = new Firework("Jean Dujardin", FireworkType.Normal, x, y, z);
-            // _network.sendCode(_password); // user authentication
-            // _network.bindReceiveFireworkPlacement((Firework fireworkReceived) =>
-            // {
-            //     Debug.Log("Inside bindReceiveFireworkPlacement");
-            //     firework = fireworkReceived;
-            // });
-            // _network.placeFirework(fireworkToSend);
-            // await Task.Delay(2000).ConfigureAwait(false);
-            // Assert.True(fireworkToSend.Equals(firework));
+            yield return _network.SendCode(_password); // user authentication
+            var firework = new Firework("User Test", FireworkType.Normal, "10", "11", "12");
+            
+            _network.BindReceiveFireworkPlacement((Firework fireworkReceived) =>
+            {
+                Debug.Log("Inside bindReceiveFireworkPlacement");
+                firework = fireworkReceived;
+            });
         }
 
 
