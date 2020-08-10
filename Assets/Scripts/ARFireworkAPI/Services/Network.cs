@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Generic;
 using ARFireworkAPI.Adapters;
 using ARFireworkAPI.Models;
 using ARFireworkAPI.Serializable;
@@ -7,6 +8,8 @@ using Newtonsoft.Json.Linq;
 using PusherClient;
 using UnityEngine;
 using UnityEngine.Networking;
+using System.Linq;
+using Newtonsoft.Json; // Make 'Select' extension available
 
 
 namespace ARFireworkAPI.Services
@@ -20,15 +23,16 @@ namespace ARFireworkAPI.Services
         public static string Protocol { get; private set; } = "http://";
         public static string Host { get; private set; } = "localhost";
         private const string Prefix = "/api/";
-        
+
         private const string PlaceFireworkRoute = "firework/broadcast";
+        private const string TriggerFireworkRoute = "firework/trigger";
         private const string LoginRoute = "login";
         private const string ProtectedResourceRoute = "protected-resource-test";
-        
+
         // PUSHER
         private Pusher _pusher;
         private Channel _channel;
-        
+
         private readonly string _pusherAuthEndpoint;
         private readonly string _appKey;
         private readonly string _appCluster;
@@ -38,6 +42,7 @@ namespace ARFireworkAPI.Services
         public bool ConnectionIsStillValid { get; private set; }
 
         public int PlaceFireworkResponse { get; private set; }
+        public int TriggerFireworkResponse { get; private set; }
 
         public static Network Instance
         {
@@ -53,7 +58,7 @@ namespace ARFireworkAPI.Services
             }
         }
 
-        
+
         private Network()
         {
             new EnvSetter();
@@ -73,16 +78,11 @@ namespace ARFireworkAPI.Services
         {
             Host = host;
         }
-        
+
         public void BindReceiveFireworkPlacement(OnReceiveFireworkPlacement f)
         {
-            _channel.Bind("firework-placement", (dynamic data) =>
-            {
-                f(new FireworkReceived(data));
-            });
+            _channel.Bind("firework-placement", (dynamic data) => { f(new FireworkReceived(data)); });
         }
-        
-        
 
         public void BindReceiveFireworkTrigger(OnReceiveFireworkTrigger f)
         {
@@ -136,6 +136,44 @@ namespace ARFireworkAPI.Services
             }
         }
 
+        public IEnumerator TriggerFirework(IEnumerable<FireworkReceived> fireworksReceived)
+        {
+            var fireworkIds = fireworksReceived.Select(fr => fr.Id).ToArray();
+            yield return TriggerFirework(fireworkIds);
+        }
+
+        public IEnumerator TriggerFirework(uint[] fireworkIds)
+        {
+            var fireworkIdsStr = string.Join(",", fireworkIds);
+            Debug.Log(fireworkIdsStr);
+            var form = new WWWForm();
+            form.AddField("firework_ids", fireworkIdsStr);
+            
+            var accessToken = _tokenStorage.RetrieveAccessToken();
+            
+            using (var www = UnityWebRequest.Post(BuildUrl(TriggerFireworkRoute), form))
+            {
+                www.SetRequestHeader("Accept", "application/json");
+                www.SetRequestHeader("Authorization", $"Bearer {accessToken}");
+                yield return www.SendWebRequest();
+
+                TriggerFireworkResponse = (int) www.responseCode;
+                Debug.Log(TriggerFireworkResponse);
+                
+                if (www.isNetworkError || www.isHttpError)
+                {
+                    Debug.Log(www.error);
+                    Debug.Log(www.downloadHandler.text);
+                }
+                else
+                {
+                    // Debug.Log("Form uploaded complete!");
+                    // var responseText = www.downloadHandler.text;
+                    // Debug.Log("Response Text:" + responseText);
+                }
+            }
+        }
+
         public IEnumerator SendCode(string code)
         {
             AuthenticationResponse = null;
@@ -146,8 +184,9 @@ namespace ARFireworkAPI.Services
         }
 
         // PRIVATE METHODS =============================================================================================
+
         #region PrivateMethods
-        
+
         private IEnumerator Login(string password)
         {
             var form = new WWWForm();
@@ -218,47 +257,32 @@ namespace ARFireworkAPI.Services
         {
             return $"{Protocol}{Host}{Prefix}{route}";
         }
-        
+
         private async void InitializePusher(string accessToken)
         {
-            
             var uri = $"{Protocol}{Host}{Prefix}{_pusherAuthEndpoint}";
             // Debug.Log("uri: " + uri);
             // Debug.Log("app key: " + _appKey);
             // Debug.Log("app cluster: " + _appCluster);
             // Debug.Log("access token: " + accessToken);
             // Debug.Log("channel: " + _channelFirework);
-            
+
             _pusher = new Pusher(_appKey, new PusherOptions()
             {
                 Authorizer = new MyAuthorizer(uri, accessToken),
-                Cluster = _appCluster,    
+                Cluster = _appCluster,
             });
-            
-            _pusher.Error += (s, e) =>
-            {
-                Debug.Log("Errored");
-            };
-            _pusher.ConnectionStateChanged += (sender, state) =>
-            {
-                Debug.Log("Connection state changed");
-            };
-            _pusher.Connected += sender =>
-            {
-                Debug.Log("Connected");
-            };
+
+            _pusher.Error += (s, e) => { Debug.Log("Errored"); };
+            _pusher.ConnectionStateChanged += (sender, state) => { Debug.Log("Connection state changed"); };
+            _pusher.Connected += sender => { Debug.Log("Connected"); };
 
             _channel = await _pusher.SubscribeAsync(_channelFirework);
-            _channel.Subscribed += s =>
-            {
-                Debug.Log("Subscribed");
-            };
+            _channel.Subscribed += s => { Debug.Log("Subscribed"); };
 
             await _pusher.ConnectAsync();
         }
 
         #endregion
-        
-        
     }
 }

@@ -1,6 +1,7 @@
 ﻿using NUnit.Framework;
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using Random = System.Random;
 using System.Globalization;
 using ARFireworkAPI.Models;
@@ -19,6 +20,9 @@ namespace Tests.PlayTests
         private string _password;
         private const string FailingPassword = "i'm sure that no body will set this password...";
 
+        private FireworkReceived _fireworkReceived;
+        private List<FireworkReceived> _severalFireworksReceived;
+        
         [SetUp]
         public void Init()
         {
@@ -27,6 +31,7 @@ namespace Tests.PlayTests
             _tokenStorage = TokenStorage.Instance;
             new EnvSetter();
             _password = Environment.GetEnvironmentVariable("password");
+            _severalFireworksReceived = new List<FireworkReceived>();
         }
 
         [UnityTest]
@@ -62,7 +67,7 @@ namespace Tests.PlayTests
             yield return _network.CheckConnectionStillValid();
             Assert.False(_network.ConnectionIsStillValid);
         }
-        
+
         [UnityTest]
         public IEnumerator TestPlaceFirework()
         {
@@ -71,7 +76,7 @@ namespace Tests.PlayTests
             yield return _network.PlaceFirework(firework);
             Assert.True(_network.PlaceFireworkResponse == 200);
         }
-        
+
         [UnityTest]
         public IEnumerator TestPlaceFireworkFailureFormat()
         {
@@ -83,7 +88,7 @@ namespace Tests.PlayTests
             });
 
             // fireword is still null here
-            
+
             // Assert.Throws<NullReferenceException>(() =>
             // {
             //     yield return _network.PlaceFirework(firework);
@@ -91,7 +96,7 @@ namespace Tests.PlayTests
             //
             // Assert.True(_network.PlaceFireworkResponse != 200);
         }
-        
+
         [UnityTest]
         public IEnumerator TestPlaceFireworkFailureAuth()
         {
@@ -106,7 +111,7 @@ namespace Tests.PlayTests
         public IEnumerator TestBindReceiveFireworkPlacement()
         {
             yield return _network.SendCode(_password); // user authentication
-            var firework = new Firework(FireworkType.Normal, RandCoordinate(), 
+            var firework = new Firework(FireworkType.Normal, RandCoordinate(),
                 RandCoordinate(), RandCoordinate());
             Debug.Log(firework);
             _network.BindReceiveFireworkPlacement((FireworkReceived fireworkReceived) =>
@@ -117,9 +122,48 @@ namespace Tests.PlayTests
             yield return new WaitForSeconds(1); // Wait to be sure binding is done
             yield return _network.PlaceFirework(firework);
             yield return new WaitForSeconds(1); // Wait to be sure code has the time to go in the body of the Binding
-            
         }
 
+        [UnityTest]
+        public IEnumerator TestTriggerFirework()
+        {
+            yield return _network.SendCode(_password); // user authentication
+            var firework = new Firework(FireworkType.Normal, RandCoordinate(),
+                RandCoordinate(), RandCoordinate());
+            Debug.Log(firework);
+            _network.BindReceiveFireworkPlacement((FireworkReceived fireworkReceived) =>
+            {
+                _fireworkReceived = fireworkReceived;
+            });
+            yield return new WaitForSeconds(1); // Wait to be sure binding is done
+            yield return _network.PlaceFirework(firework);
+            yield return new WaitForSeconds(1); // Wait to be sure code has the time to go in the body of the Binding
+            yield return _network.TriggerFirework(new FireworkReceived[] {_fireworkReceived});
+            Assert.True(_network.TriggerFireworkResponse == 200);
+        }
+
+        [UnityTest]
+        public IEnumerator TestTriggerSeveralFirework()
+        {
+            yield return _network.SendCode(_password); // user authentication
+            var firework1 = new Firework(FireworkType.Normal, RandCoordinate(),
+                RandCoordinate(), RandCoordinate());
+            var firework2 = new Firework(FireworkType.Big, RandCoordinate(),
+                RandCoordinate(), RandCoordinate());
+            Debug.Log(firework1);
+            _network.BindReceiveFireworkPlacement((FireworkReceived fireworkReceived) =>
+            {
+                Debug.Log("FIREWORK RECEIVED");
+                _severalFireworksReceived.Add(fireworkReceived);
+            });
+            yield return new WaitForSeconds(1); // Wait to be sure binding is done
+            yield return _network.PlaceFirework(firework1);
+            yield return new WaitForSeconds(1); // Wait to be sure code has the time to go in the body of the Binding
+            yield return _network.PlaceFirework(firework2);
+            yield return new WaitForSeconds(1); // Wait to be sure code has the time to go in the body of the Binding
+            yield return _network.TriggerFirework(_severalFireworksReceived);
+            Assert.True(_network.TriggerFireworkResponse == 200);
+        }
 
         private string RandCoordinate()
         {

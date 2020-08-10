@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System.Collections.Generic;
 using ARFireworkAPI.Models;
 
 namespace ARFireworkAPI.Services
@@ -45,6 +46,20 @@ namespace ARFireworkAPI.Services
         /// <returns>The HTTP response code: 200 if successful</returns>
         IEnumerator PlaceFirework(Firework firework);
 
+        /// <summary>
+        /// Trigger the fireworks in the array
+        /// </summary>
+        /// <param name="fireworksReceived"></param>
+        /// <returns></returns>
+        IEnumerator TriggerFirework(IEnumerable<FireworkReceived> fireworksReceived);
+
+        /// <summary>
+        /// Trigger the fireworks having the ids in the array
+        /// </summary>
+        /// <param name="fireworkIds"></param>
+        /// <returns></returns>
+        IEnumerator TriggerFirework(uint[] fireworkIds);
+        
         /// <summary>
         /// The function given in parameter will be called each time the app receives an FireworkPlacement event
         /// </summary>
